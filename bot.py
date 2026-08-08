@@ -1,138 +1,196 @@
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, 
-    CallbackQueryHandler, ContextTypes, filters
+    ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 )
 
 # ================= CONFIGURATION =================
-TOKEN = "8859933227:AAEMJ3-BZ_obhkAck8K8oz4M-cUAxpJpw_s"
+RESELLER_TOKEN = "8882760232:AAHnLw-hoF5lgKxkWRhbNypO8POXx9NCFhk"
+LOGS_TOKEN = "8993788156:AAGO72TkJkPa5cyEN44gLQWAdvj1NEQlrqQ"
+ADMIN_TOKEN = "8192870600:AAHQ91M5z2UN2MKspqK9LK3GeGr-WKUkFng"
+
 ADMIN_CHAT_ID = 8438744876
 
-# Mod List
-MODS = [
-    "Drip Client",
-    "Drip Client Proxy",
-    "Hg Cheats",
-    "Hg Proxy",
-    "Br Mods Root",
-    "Pato Team",
-    "Silent Cheats",
-    "Fluorite",
-    "Migual"
-]
+logs_bot = Bot(token=LOGS_TOKEN)
+
+# Shared Memory Data
+RESELLERS = {
+    8438744876: {"name": "Admin", "balance": 999999}
+}
+
+MODS = {
+    "Drip Client": 500,
+    "Hg Cheats": 400
+}
 # =================================================
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Display Mod List Buttons"""
-    keyboard = []
-    for i in range(0, len(MODS), 2):
-        row = [InlineKeyboardButton(MODS[i], callback_data=f"mod_{i}")]
-        if i + 1 < len(MODS):
-            row.append(InlineKeyboardButton(MODS[i+1], callback_data=f"mod_{i+1}"))
-        keyboard.append(row)
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        "Welcome! Please select your Mod/Client:",
-        reply_markup=reply_markup
+# --- ADMIN BOT HANDLERS ---
+async def admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    msg = (
+        "👑 ADMIN PANEL CONTROL\n\n"
+        "Commands:\n"
+        "1. /addmod <mod_name> <price>\n"
+        "2. /delmod <mod_name>\n"
+        "3. /addreseller <user_id> <name>\n"
+        "4. /addbalance <user_id> <amount>\n"
+        "5. /setadmin <new_chat_id>\n"
     )
+    await update.message.reply_text(msg)
 
-async def mod_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Ask for Key after Mod selection"""
-    query = update.callback_query
-    await query.answer()
-
-    mod_index = int(query.data.split('_')[1])
-    selected_mod = MODS[mod_index]
-    context.user_data['selected_mod'] = selected_mod
-
-    await query.edit_message_text(
-        f"Selected Mod: {selected_mod}\n\nPlease send your License Key now:"
-    )
-
-async def handle_key_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle Key Input and Notify Admin"""
-    user_id = update.effective_user.id
-    username = update.effective_user.username or update.effective_user.first_name
-    key = update.message.text.strip()
-    selected_mod = context.user_data.get('selected_mod', 'Unknown')
-
-    # Notify User
-    await update.message.reply_text(
-        f"⏳ STATUS: PENDING\n\n"
-        f"Mod: {selected_mod}\n"
-        f"Key: {key}\n\n"
-        f"Your request has been submitted to Admin."
-    )
-
-    # Notify Admin
-    keyboard = [
-        [
-            InlineKeyboardButton("Approve", callback_data=f"app_{user_id}_{mod_index_by_name(selected_mod)}"),
-            InlineKeyboardButton("Reject", callback_data=f"rej_{user_id}_{mod_index_by_name(selected_mod)}")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await context.bot.send_message(
-        chat_id=ADMIN_CHAT_ID,
-        text=f"NEW RESET REQUEST\n\n"
-             f"User: @{username} (ID: {user_id})\n"
-             f"Mod: {selected_mod}\n"
-             f"Key: {key}",
-        reply_markup=reply_markup
-    )
-
-def mod_index_by_name(name):
+async def set_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global ADMIN_CHAT_ID
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
     try:
-        return MODS.index(name)
-    except ValueError:
-        return 0
+        ADMIN_CHAT_ID = int(context.args[0])
+        await update.message.reply_text(f"✅ Admin Chat ID updated: `{ADMIN_CHAT_ID}`")
+    except Exception:
+        await update.message.reply_text("⚠️ Usage: /setadmin <new_chat_id>")
 
-async def admin_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle Admin Approval/Rejection"""
+async def add_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    try:
+        mod_name, price = context.args[0], int(context.args[1])
+        MODS[mod_name] = price
+        await update.message.reply_text(f"✅ Mod `{mod_name}` added: {price} LKR")
+    except Exception:
+        await update.message.reply_text("⚠️ Usage: /addmod <mod_name> <price>")
+
+async def del_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    try:
+        mod_name = context.args[0]
+        if mod_name in MODS:
+            del MODS[mod_name]
+            await update.message.reply_text(f"✅ Mod `{mod_name}` deleted!")
+    except Exception:
+        await update.message.reply_text("⚠️ Usage: /delmod <mod_name>")
+
+async def add_reseller(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    try:
+        target_id = int(context.args[0])
+        name = context.args[1] if len(context.args) > 1 else "Reseller"
+        RESELLERS[target_id] = {"name": name, "balance": 0}
+        await update.message.reply_text(f"✅ Reseller `{target_id}` added!")
+    except Exception:
+        await update.message.reply_text("⚠️ Usage: /addreseller <user_id> <name>")
+
+async def add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    try:
+        target_id, amount = int(context.args[0]), int(context.args[1])
+        if target_id in RESELLERS:
+            RESELLERS[target_id]["balance"] += amount
+            await update.message.reply_text(f"✅ Added {amount} LKR to `{target_id}`")
+    except Exception:
+        await update.message.reply_text("⚠️ Usage: /addbalance <user_id> <amount>")
+
+
+# --- RESELLER BOT HANDLERS ---
+async def reseller_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in RESELLERS:
+        await update.message.reply_text("❌ ACCESS DENIED!")
+        return
+
+    balance = RESELLERS[user_id]["balance"]
+    keyboard = [
+        [InlineKeyboardButton("🔑 Generate Key", callback_data="gen_key_menu")],
+        [InlineKeyboardButton("💰 My Balance", callback_data="check_balance")]
+    ]
+    await update.message.reply_text(
+        f"👑 RESELLER DASHBOARD\n\nUser: {update.effective_user.first_name}\nBalance: {balance} LKR",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def reseller_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    user_id = query.from_user.id
     await query.answer()
 
-    data = query.data.split('_')
-    action = data[0]
-    user_id = int(data[1])
-    mod_name = MODS[int(data[2])]
+    if user_id not in RESELLERS:
+        await query.edit_message_text("❌ Access Denied!")
+        return
 
-    if action == "app":
-        try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=f"✅ RESET SUCCESSFUL!\n\nMod: {mod_name}\nStatus: Key Reset Approved."
-            )
-        except Exception:
-            pass
-        await query.edit_message_text(f"Approved for User: {user_id} ({mod_name})")
+    data = query.data
+    if data == "check_balance":
+        await query.edit_message_text(f"💰 Current Balance: {RESELLERS[user_id]['balance']} LKR")
 
-    elif action == "rej":
+    elif data == "gen_key_menu":
+        keyboard = []
+        items = list(MODS.items())
+        for i in range(0, len(items), 2):
+            row = [InlineKeyboardButton(f"{items[i][0]} - {items[i][1]} LKR", callback_data=f"buy_{items[i][0]}")]
+            if i + 1 < len(items):
+                row.append(InlineKeyboardButton(f"{items[i+1][0]} - {items[i+1][1]} LKR", callback_data=f"buy_{items[i+1][0]}"))
+            keyboard.append(row)
+        await query.edit_message_text("🔑 Select Mod:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data.startswith("buy_"):
+        mod_name = data.split("_")[1]
+        price = MODS.get(mod_name, 0)
+
+        if RESELLERS[user_id]["balance"] < price:
+            await query.edit_message_text("❌ INSUFFICIENT BALANCE!")
+            return
+
+        RESELLERS[user_id]["balance"] -= price
+        generated_key = f"KEY-{mod_name[:3].upper()}-99823-XITER"
+
+        await query.edit_message_text(
+            f"✅ KEY GENERATED!\n\nMod: {mod_name}\nKey: `{generated_key}`\nBalance Left: {RESELLERS[user_id]['balance']} LKR"
+        )
+
+        log_text = (
+            f"📢 NEW KEY LOG\n\n"
+            f"Reseller: @{query.from_user.username or user_id}\n"
+            f"Mod: {mod_name}\n"
+            f"Key: `{generated_key}`"
+        )
         try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=f"❌ RESET REJECTED!\n\nMod: {mod_name}\nStatus: Key Reset Denied."
-            )
-        except Exception:
-            pass
-        await query.edit_message_text(f"Rejected for User: {user_id} ({mod_name})")
+            await logs_bot.send_message(chat_id=ADMIN_CHAT_ID, text=log_text)
+        except Exception as e:
+            print(f"Log Error: {e}")
+
+
+# --- MAIN RUNNER ---
+def main():
+    admin_app = ApplicationBuilder().token(ADMIN_TOKEN).build()
+    admin_app.add_handler(CommandHandler("start", admin_start))
+    admin_app.add_handler(CommandHandler("setadmin", set_admin))
+    admin_app.add_handler(CommandHandler("addmod", add_mod))
+    admin_app.add_handler(CommandHandler("delmod", del_mod))
+    admin_app.add_handler(CommandHandler("addreseller", add_reseller))
+    admin_app.add_handler(CommandHandler("addbalance", add_balance))
+
+    reseller_app = ApplicationBuilder().token(RESELLER_TOKEN).build()
+    reseller_app.add_handler(CommandHandler("start", reseller_start))
+    reseller_app.add_handler(CallbackQueryHandler(reseller_button))
+
+    # Run Admin bot and Reseller bot concurrently
+    import asyncio
+    async def run_bots():
+        await admin_app.initialize()
+        await admin_app.start()
+        await admin_app.updater.start_polling()
+
+        await reseller_app.initialize()
+        await reseller_app.start()
+        await reseller_app.updater.start_polling()
+
+        while True:
+            await asyncio.sleep(3600)
+
+    asyncio.run(run_bots())
 
 if __name__ == '__main__':
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(mod_selected, pattern="^mod_"))
-    app.add_handler(CallbackQueryHandler(admin_decision, pattern="^(app_|rej_)"))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_key_input))
-
-    print("Bot is running...")
-    app.run_polling()
+    main()
