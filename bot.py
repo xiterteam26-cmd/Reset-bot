@@ -42,71 +42,15 @@ def init_database():
     connection = db()
     cursor = connection.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS config (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS resellers (
-            user_id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            balance INTEGER DEFAULT 0,
-            active INTEGER DEFAULT 1,
-            created_at TEXT NOT NULL
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS mods (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            price INTEGER NOT NULL,
-            active INTEGER DEFAULT 1,
-            created_at TEXT NOT NULL
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS key_pool (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mod_id INTEGER NOT NULL,
-            key_value TEXT UNIQUE NOT NULL,
-            is_used INTEGER DEFAULT 0,
-            added_at TEXT NOT NULL
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS keys (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            reseller_id INTEGER NOT NULL,
-            reseller_name TEXT,
-            mod_id INTEGER NOT NULL,
-            mod_name TEXT NOT NULL,
-            key_value TEXT UNIQUE NOT NULL,
-            price INTEGER NOT NULL,
-            created_at TEXT NOT NULL
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS system_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            event_type TEXT NOT NULL,
-            message TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-    """)
+    cursor.execute("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS resellers (user_id INTEGER PRIMARY KEY, name TEXT NOT NULL, balance INTEGER DEFAULT 0, active INTEGER DEFAULT 1, created_at TEXT NOT NULL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS mods (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, price INTEGER NOT NULL, active INTEGER DEFAULT 1, created_at TEXT NOT NULL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS key_pool (id INTEGER PRIMARY KEY AUTOINCREMENT, mod_id INTEGER NOT NULL, key_value TEXT UNIQUE NOT NULL, is_used INTEGER DEFAULT 0, added_at TEXT NOT NULL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY AUTOINCREMENT, reseller_id INTEGER NOT NULL, reseller_name TEXT, mod_id INTEGER NOT NULL, mod_name TEXT NOT NULL, key_value TEXT UNIQUE NOT NULL, price INTEGER NOT NULL, created_at TEXT NOT NULL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, event_type TEXT NOT NULL, message TEXT NOT NULL, created_at TEXT NOT NULL)")
 
     cursor.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('admin_chat_id', ?)", (str(ADMIN_CHAT_ID),))
-    
-    cursor.execute("""
-        INSERT OR IGNORE INTO resellers (user_id, name, balance, active, created_at)
-        VALUES (?, ?, ?, ?, ?)
-    """, (ADMIN_CHAT_ID, "Owner Admin", 999999, 1, now()))
+    cursor.execute("INSERT OR IGNORE INTO resellers (user_id, name, balance, active, created_at) VALUES (?, ?, ?, ?, ?)", (ADMIN_CHAT_ID, "Owner Admin", 999999, 1, now()))
 
     connection.commit()
     connection.close()
@@ -309,11 +253,7 @@ async def add_reseller(update: Update, context: ContextTypes.DEFAULT_TYPE):
         name = context.args[1] if len(context.args) > 1 else "Reseller"
         
         connection = db()
-        connection.execute("""
-            INSERT INTO resellers (user_id, name, balance, active, created_at)
-            VALUES (?, ?, 0, 1, ?)
-            ON CONFLICT(user_id) DO UPDATE SET name = excluded.name, active = 1
-        """, (target_id, name, now()))
+        connection.execute("INSERT INTO resellers (user_id, name, balance, active, created_at) VALUES (?, ?, 0, 1, ?) ON CONFLICT(user_id) DO UPDATE SET name = excluded.name, active = 1", (target_id, name, now()))
         connection.commit()
         connection.close()
 
@@ -463,8 +403,7 @@ async def reseller_button_handler(update: Update, context: ContextTypes.DEFAULT_
 
         connection.execute("UPDATE key_pool SET is_used = 1 WHERE id = ?", (stock_item["id"],))
         connection.execute("UPDATE resellers SET balance = ? WHERE user_id = ?", (new_balance, user_id))
-        connection.execute("INSERT INTO keys (reseller_id, reseller_name, mod_id, mod_name, key_value, price, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                           (user_id, reseller["name"], mod["id"], mod["name"], key_value, mod["price"], now()))
+        connection.execute("INSERT INTO keys (reseller_id, reseller_name, mod_id, mod_name, key_value, price, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", (user_id, reseller["name"], mod["id"], mod["name"], key_value, mod["price"], now()))
         connection.commit()
 
         msg = (
