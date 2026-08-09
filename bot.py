@@ -236,7 +236,8 @@ async def admin_button_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # Admin Commands
 async def set_admin_chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != get_admin_id(): return
+    if update.effective_user.id != get_admin_id():
+        return
     try:
         new_id = int(context.args[0])
         set_admin_id(new_id)
@@ -246,7 +247,8 @@ async def set_admin_chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ **Usage:** `/setadminid New_Chat_ID`", parse_mode=ParseMode.MARKDOWN)
 
 async def add_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != get_admin_id(): return
+    if update.effective_user.id != get_admin_id():
+        return
     try:
         mod_name = " ".join(context.args[:-1]).replace("_", " ").strip()
         price = int(context.args[-1])
@@ -262,7 +264,8 @@ async def add_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ **Usage:** `/addmod Mod_Name Price`", parse_mode=ParseMode.MARKDOWN)
 
 async def add_key_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != get_admin_id(): return
+    if update.effective_user.id != get_admin_id():
+        return
     try:
         mod_id = int(context.args[0])
         keys_input = context.args[1:]
@@ -284,7 +287,8 @@ async def add_key_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ **Usage:** `/addkey Mod_ID Key1 Key2...`", parse_mode=ParseMode.MARKDOWN)
 
 async def del_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != get_admin_id(): return
+    if update.effective_user.id != get_admin_id():
+        return
     try:
         mod_name = " ".join(context.args).replace("_", " ").strip()
         connection = db()
@@ -298,7 +302,8 @@ async def del_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ **Usage:** `/delmod Mod_Name`", parse_mode=ParseMode.MARKDOWN)
 
 async def add_reseller(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != get_admin_id(): return
+    if update.effective_user.id != get_admin_id():
+        return
     try:
         target_id = int(context.args[0])
         name = context.args[1] if len(context.args) > 1 else "Reseller"
@@ -318,7 +323,8 @@ async def add_reseller(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ **Usage:** `/addreseller Chat_ID Name`", parse_mode=ParseMode.MARKDOWN)
 
 async def add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != get_admin_id(): return
+    if update.effective_user.id != get_admin_id():
+        return
     try:
         target_id, amount = int(context.args[0]), int(context.args[1])
         connection = db()
@@ -339,7 +345,8 @@ async def add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         try:
             await context.bot.send_message(chat_id=target_id, text=f"🎉 **BALANCE TOP-UP CONFIRMED!**\n\nAdded: `+{amount} LKR`\nUpdated Wallet Balance: `{new_bal} LKR`", parse_mode=ParseMode.MARKDOWN)
-        except Exception: pass
+        except Exception:
+            pass
     except Exception:
         await update.message.reply_text("⚠️ **Usage:** `/addbalance Chat_ID Amount`", parse_mode=ParseMode.MARKDOWN)
 
